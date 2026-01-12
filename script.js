@@ -1,174 +1,164 @@
-:root{
-  --bg: #0b0d12;
-  --panel: #121827;
-  --text: #e8ecf5;
-  --muted: #a6b0c2;
-  --stroke: rgba(255,255,255,.10);
-  --accent: #7aa2ff;
-  --danger: #ff6b6b;
-  --stamp: #ff3b3b;
+// ====== ここを書き換えると「スタンプ対象」が増やせます ======
+const PLACES = [
+  { id: "mita", name: "三田本店", area: "東京" },
+  { id: "meguro", name: "目黒店", area: "東京" },
+  { id: "shinjuku", name: "新宿小滝橋通り店", area: "東京" },
+  { id: "ikebukuro", name: "池袋東口店", area: "東京" },
+  { id: "kawasaki", name: "川崎店", area: "神奈川" },
+  { id: "kannai", name: "関内店", area: "神奈川" },
+  { id: "sendai", name: "仙台店", area: "宮城" },
+  { id: "kyoto", name: "京都店", area: "京都" },
+];
+// ===========================================================
+
+const STORAGE_KEY = "stamp_rally_pressed_v1";
+
+const grid = document.getElementById("grid");
+const clearBtn = document.getElementById("clearBtn");
+const copyBtn = document.getElementById("copyBtn");
+const countText = document.getElementById("countText");
+const barFill = document.getElementById("barFill");
+
+function loadPressedSet() {
+  // 共有リンク（?p=...）があれば優先して読み込み
+  const url = new URL(location.href);
+  const p = url.searchParams.get("p");
+  if (p) {
+    const decoded = decodePressedFromQuery(p);
+    if (decoded) return decoded;
+  }
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
 }
 
-*{ box-sizing: border-box; }
-html, body{ height: 100%; }
-body{
-  margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
-  background: radial-gradient(1200px 600px at 20% -10%, rgba(122,162,255,.25), transparent 60%),
-              radial-gradient(900px 500px at 90% 0%, rgba(255,59,59,.18), transparent 55%),
-              var(--bg);
-  color: var(--text);
+function savePressedSet(set) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
 }
 
-.header{
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  backdrop-filter: blur(10px);
-  background: rgba(11,13,18,.55);
-  border-bottom: 1px solid var(--stroke);
-}
-.header__inner{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px 16px 14px;
-}
-.title{
-  margin: 0;
-  font-size: 22px;
-  letter-spacing: .02em;
-}
-.subtitle{
-  margin: 6px 0 12px;
-  color: var(--muted);
-  font-size: 13px;
+function updateProgress(set) {
+  const total = PLACES.length;
+  const done = set.size;
+  countText.textContent = `${done} / ${total}`;
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  barFill.style.width = `${pct}%`;
 }
 
-.actions{
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 10px 0 12px;
-}
-.btn{
-  border: 1px solid rgba(122,162,255,.35);
-  background: rgba(122,162,255,.14);
-  color: var(--text);
-  padding: 9px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-}
-.btn:hover{ background: rgba(122,162,255,.20); }
-.btn--ghost{
-  border: 1px solid rgba(255,255,255,.18);
-  background: rgba(255,255,255,.06);
-}
-.btn--ghost:hover{ background: rgba(255,255,255,.10); }
+function render(set) {
+  grid.innerHTML = "";
+  for (const place of PLACES) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-pressed", "false");
 
-.progress{
-  display: grid;
-  gap: 8px;
-}
-#countText{ color: var(--muted); font-size: 13px; }
-.bar{
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.08);
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.10);
-}
-.bar__fill{
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, rgba(122,162,255,.85), rgba(255,59,59,.85));
-}
+    card.innerHTML = `
+      <div class="card__name">${escapeHtml(place.name)}</div>
+      <div class="card__meta">${escapeHtml(place.area)}</div>
+      <div class="stamp" aria-hidden="true">
+        <div class="stamp__text">済</div>
+      </div>
+    `;
 
-.main{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 18px 16px 50px;
+    const pressed = set.has(place.id);
+    if (pressed) {
+      card.classList.add("is-pressed");
+      card.setAttribute("aria-pressed", "true");
+    }
+
+    const toggle = () => {
+      if (set.has(place.id)) set.delete(place.id);
+      else set.add(place.id);
+      savePressedSet(set);
+      render(set);
+    };
+
+    card.addEventListener("click", toggle);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+
+    grid.appendChild(card);
+  }
+
+  updateProgress(set);
 }
 
-.grid{
-  display: grid;
-  grid-template-columns: repeat( auto-fill, minmax(220px, 1fr) );
-  gap: 12px;
+clearBtn.addEventListener("click", () => {
+  const set = new Set();
+  savePressedSet(set);
+  // URLの共有パラメータも消す
+  const url = new URL(location.href);
+  url.searchParams.delete("p");
+  history.replaceState(null, "", url.toString());
+  render(set);
+});
+
+copyBtn.addEventListener("click", async () => {
+  const set = loadPressedSet();
+  const url = new URL(location.href);
+  url.searchParams.set("p", encodePressedToQuery(set));
+
+  try {
+    await navigator.clipboard.writeText(url.toString());
+    copyBtn.textContent = "コピーしました！";
+    setTimeout(() => (copyBtn.textContent = "共有リンクをコピー"), 1200);
+  } catch {
+    // クリップボード不可の環境用フォールバック
+    prompt("このURLをコピーしてください", url.toString());
+  }
+});
+
+// ====== 共有リンク用（短くするため base64 + ざっくり圧縮） ======
+function encodePressedToQuery(set) {
+  const ids = PLACES.map(p => p.id);
+  const bits = ids.map(id => (set.has(id) ? "1" : "0")).join("");
+  // bits -> bytes
+  const bytes = [];
+  for (let i = 0; i < bits.length; i += 8) {
+    bytes.push(parseInt(bits.slice(i, i + 8).padEnd(8, "0"), 2));
+  }
+  const bin = String.fromCharCode(...bytes);
+  return btoa(bin).replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_"); // URL safe
 }
 
-.card{
-  position: relative;
-  border: 1px solid var(--stroke);
-  background: linear-gradient(180deg, rgba(18,24,39,.86), rgba(18,24,39,.62));
-  border-radius: 16px;
-  padding: 14px 14px 12px;
-  min-height: 86px;
-  cursor: pointer;
-  transition: transform .08s ease, border-color .12s ease, background .12s ease;
-  user-select: none;
+function decodePressedFromQuery(q) {
+  try {
+    const base64 = q.replaceAll("-", "+").replaceAll("_", "/");
+    const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+    const bin = atob(base64 + pad);
+    const bytes = [...bin].map(ch => ch.charCodeAt(0));
+    const bits = bytes.map(b => b.toString(2).padStart(8, "0")).join("");
+    const set = new Set();
+    for (let i = 0; i < PLACES.length; i++) {
+      if (bits[i] === "1") set.add(PLACES[i].id);
+    }
+    return set;
+  } catch {
+    return null;
+  }
 }
-.card:hover{
-  transform: translateY(-1px);
-  border-color: rgba(122,162,255,.40);
-}
-.card__name{
-  font-weight: 800;
-  letter-spacing: .02em;
-  line-height: 1.25;
-}
-.card__meta{
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 12px;
+// ============================================================
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-/* stamp */
-.stamp{
-  position: absolute;
-  right: 12px;
-  top: 10px;
-  width: 78px;
-  height: 78px;
-  border-radius: 999px;
-  border: 3px solid rgba(255,59,59,.85);
-  color: rgba(255,59,59,.92);
-  display: grid;
-  place-items: center;
-  transform: rotate(-12deg) scale(.92);
-  opacity: 0;
-  pointer-events: none;
-  filter: drop-shadow(0 10px 14px rgba(255,59,59,.14));
-}
-.stamp::before{
-  content:"";
-  position: absolute;
-  inset: 6px;
-  border-radius: 999px;
-  border: 2px dashed rgba(255,59,59,.55);
-}
-.stamp__text{
-  font-weight: 900;
-  font-size: 14px;
-  letter-spacing: .12em;
-}
-
-/* pressed state */
-.card.is-pressed{
-  border-color: rgba(255,59,59,.35);
-}
-.card.is-pressed .stamp{
-  opacity: 1;
-  animation: pop .18s ease-out;
-}
-@keyframes pop{
-  from{ transform: rotate(-12deg) scale(.75); opacity: .0; }
-  to  { transform: rotate(-12deg) scale(.92); opacity: 1; }
-}
-
-.footer{
-  border-top: 1px solid var(--stroke);
-  color: var(--muted);
-  padding: 18px 16px;
-  text-align: center;
-}
+// 起動
+const pressedSet = loadPressedSet();
+render(pressedSet);
