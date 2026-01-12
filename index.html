@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>スタンプラリー</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header__inner">
+      <h1 class="title">スタンプラリー</h1>
+      <p class="subtitle">押したい店舗をクリック（もう一回で解除）</p>
+
+      <div class="actions">
+        <button id="clearBtn" class="btn btn--ghost" type="button">全部リセット</button>
+        <button id="copyBtn" class="btn" type="button">共有リンクをコピー</button>
+      </div>
+
+      <div class="progress">
+        <span id="countText">0 / 0</span>
+        <div class="bar"><div id="barFill" class="bar__fill"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div id="grid" class="grid" aria-live="polite"></div>
+  </main>
+
+  <footer class="footer">
+    <small>※データはブラウザに保存（localStorage）されます</small>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
